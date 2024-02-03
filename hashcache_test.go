@@ -3,6 +3,8 @@ package hashcache
 import (
 	"context"
 	"encoding/base64"
+	"fmt"
+	"github.com/google/go-cmp/cmp"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"strings"
@@ -35,6 +37,36 @@ func TestHeader_String(t *testing.T) {
 		require.NoError(t, err)
 		assert.Equal(t, "1:3:1704531845000000000:MTI3LjAuMC4xOjk5ODM=:sha-1:YWFhYWFhYWFhYQ==:0", h.String())
 	})
+}
+
+func TestParse(t *testing.T) {
+	t.Parallel()
+
+	tt := []struct {
+		in  string
+		out Header
+		err error
+	}{
+		{
+			in:  "1:20:1665396610:bG9jYWxob3N0:sha-256:vZOxuoIgixP+hw==:AAAAAAAAAAA=",
+			out: Header{Ver: 1, ZeroBits: 20, Expiration: 1665396610, Resource: "localhost", Algorithm: algSha256},
+		},
+	}
+
+	for i, tc := range tt {
+		t.Run(fmt.Sprintf("test case %d", i), func(t *testing.T) {
+			h, err := Parse(tc.in)
+			if tc.err == nil && err != nil {
+				t.Fatalf("unexpected error %v", err)
+			} else if tc.err != nil && err == nil {
+				t.Fatalf("expected an error %v but got nil", tc.err)
+			}
+
+			if diff := cmp.Diff(tc.out, h); diff != "" {
+				t.Fatalf("mismatch (-want, +got):\n%s", diff)
+			}
+		})
+	}
 }
 
 func TestHeader_Compute(t *testing.T) {

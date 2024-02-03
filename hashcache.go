@@ -10,17 +10,24 @@ import (
 	"errors"
 	"fmt"
 	"hash"
+	"math"
+	"slices"
+	"strconv"
+	"strings"
 	"time"
 )
 
 const (
 	defaultVersion      = 1
 	defaultRandBytesNum = 10
+
+	headerStringSeparator = ":"
 )
 
 var (
-	ErrRandomFailed      = errors.New("random generation failed")
-	ErrTooManyIterations = errors.New("too many iterations")
+	ErrRandomFailed        = errors.New("random generation failed")
+	ErrTooManyIterations   = errors.New("too many iterations")
+	ErrInvalidHeaderString = errors.New("invalid header string")
 )
 
 var (
@@ -66,7 +73,7 @@ func New(resource string, zeroBits uint8, ttl time.Duration) (Header, error) {
 		ZeroBits:   zeroBits,
 		Resource:   base64.StdEncoding.EncodeToString([]byte(resource)),
 		Rand:       randEncoded,
-		Algorithm:  "sha-1",
+		Algorithm:  algSha1,
 		Expiration: clock().Add(ttl).UnixNano(),
 		Counter:    0,
 	}, nil
@@ -118,6 +125,56 @@ func Compute(ctx context.Context, h Header, maxIterations int) (Header, error) {
 	}
 
 	return Header{}, ErrTooManyIterations
+}
+
+func Parse(header string) (Header, error) {
+	var h Header
+
+	tokens := strings.Split(header, headerStringSeparator)
+	if len(tokens) < 7 {
+		return h, ErrInvalidHeaderString
+	}
+
+	version, err := strconv.Atoi(tokens[0])
+	if err != nil {
+		return h, fmt.Errorf("%w: invalid version '%s'", ErrInvalidHeaderString, tokens[0])
+	}
+
+	if version > math.MaxUint8 || version < 0 {
+		return h, fmt.Errorf("%w: invalid version '%d'", ErrInvalidHeaderString, version)
+	}
+
+	zeroBits, err := strconv.Atoi(tokens[1])
+	if err != nil {
+		return h, fmt.Errorf("%w: invalid zero bits '%s'", ErrInvalidHeaderString, tokens[1])
+	}
+
+	if zeroBits > math.MaxUint8 || zeroBits < 0 {
+		return h, fmt.Errorf("%w: invalid zero bits '%d'", ErrInvalidHeaderString, zeroBits)
+	}
+
+	expiration, err := strconv.ParseInt(tokens[2], 10, 64)
+	if err != nil {
+		return h, fmt.Errorf("%w: invalid expiration '%s'", ErrInvalidHeaderString, tokens[2])
+	}
+
+	resource, err := base64.StdEncoding.DecodeString(tokens[3])
+	if err != nil {
+		return h, fmt.Errorf("%w: invalid base64 encoded resource '%s'", ErrInvalidHeaderString, tokens[3])
+	}
+
+	alg := tokens[4]
+	if !slices.Contains(algorithms, alg) {
+		return h, fmt.Errorf("%w: unsupported algorithm '%s'", ErrInvalidHeaderString, alg)
+	}
+
+	return Header{
+		Ver:        uint8(version),
+		ZeroBits:   uint8(zeroBits),
+		Expiration: expiration,
+		Resource:   string(resource),
+		Algorithm:  alg,
+	}, nil
 }
 
 func resolveHash(alg string) hash.Hash {
