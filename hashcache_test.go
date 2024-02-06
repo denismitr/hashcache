@@ -48,8 +48,16 @@ func TestParse(t *testing.T) {
 		err error
 	}{
 		{
-			in:  "1:20:1665396610:bG9jYWxob3N0:sha-256:vZOxuoIgixP+hw==:AAAAAAAAAAA=",
-			out: Header{Ver: 1, ZeroBits: 20, Expiration: 1665396610, Resource: "localhost", Algorithm: algSha256},
+			in: "1:20:1665396610:bG9jYWxob3N0:sha-256:vZOxuoIgixP+hw==:AAAAAAAAAAA=",
+			out: Header{
+				Ver:        1,
+				ZeroBits:   20,
+				Expiration: 1665396610,
+				Resource:   "localhost",
+				Algorithm:  algSha256,
+				Counter:    0,
+				Rand:       "vZOxuoIgixP+hw==",
+			},
 		},
 	}
 

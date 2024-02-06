@@ -6,6 +6,7 @@ import (
 	"crypto/sha1"
 	"crypto/sha256"
 	"encoding/base64"
+	"encoding/binary"
 	"encoding/hex"
 	"errors"
 	"fmt"
@@ -168,12 +169,22 @@ func Parse(header string) (Header, error) {
 		return h, fmt.Errorf("%w: unsupported algorithm '%s'", ErrInvalidHeaderString, alg)
 	}
 
+	randEncoded := tokens[5]
+
+	counterByt, err := base64.StdEncoding.DecodeString(tokens[6])
+	if err != nil {
+		return h, fmt.Errorf("%w: invalid counter: %s", ErrInvalidHeaderString, err.Error())
+	}
+	counter := binary.LittleEndian.Uint64(counterByt)
+
 	return Header{
-		Ver:        uint8(version),
-		ZeroBits:   uint8(zeroBits),
-		Expiration: expiration,
 		Resource:   string(resource),
 		Algorithm:  alg,
+		Rand:       randEncoded,
+		Expiration: expiration,
+		Counter:    counter,
+		Ver:        uint8(version),
+		ZeroBits:   uint8(zeroBits),
 	}, nil
 }
 
