@@ -78,7 +78,9 @@ func TestParse(t *testing.T) {
 }
 
 func TestHeader_Compute(t *testing.T) {
-	t.Run("default", func(t *testing.T) {
+	t.Parallel()
+
+	t.Run("compute to valid header", func(t *testing.T) {
 		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 		defer cancel()
 
@@ -89,4 +91,42 @@ func TestHeader_Compute(t *testing.T) {
 		assert.Greater(t, int(computed.Counter), 100)
 		assert.True(t, computed.Valid())
 	})
+
+	tt := []struct {
+		header        string
+		maxIterations int
+		resultHash    string
+	}{
+		{
+			header:        "1:5:1665396610:bG9jYWxob3N0:sha-256:vZOxuoIgixP+hw==:AAAAAAAAAAA=",
+			maxIterations: 1 << 22,
+			resultHash:    "00000f3a78cd2ebd62aba2542c5c02975b28e41653804097d6e84672d8f8d9e9",
+		},
+		{
+			header:        "1:6:1665396610:bG9jYWxob3N0:sha-512:vZOxuoIgixP+hw==:AAAAAAAAAAA=",
+			maxIterations: 1 << 22,
+			resultHash:    "000000df7fc0cbaddb2a9c150e5a52c298409c7c86bd1d51b63b38aeca54f74ff20a84e62d6a445cd4a6a9cb45db1ea5b9f001a27839e65963402f21387147c6",
+		},
+	}
+
+	for i, tc := range tt {
+		t.Run(fmt.Sprintf("test case %d", i), func(t *testing.T) {
+			ctx, cancel := context.WithTimeout(context.Background(), time.Second*3)
+			defer cancel()
+
+			h, err := Parse(tc.header)
+			if err != nil {
+				t.Fatalf("invalid header %s: %v", tc.header, err)
+			}
+
+			computed, err := Compute(ctx, h, tc.maxIterations)
+			if err != nil {
+				t.Fatalf("compute failed for header %s: %v", tc.header, err)
+			}
+
+			if diff := cmp.Diff(tc.resultHash, computed.Hash()); diff != "" {
+				t.Fatalf("mismatch (-want, +got):\n%s", diff)
+			}
+		})
+	}
 }

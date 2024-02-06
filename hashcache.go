@@ -3,14 +3,11 @@ package hashcache
 import (
 	"context"
 	"crypto/rand"
-	"crypto/sha1"
-	"crypto/sha256"
 	"encoding/base64"
 	"encoding/binary"
 	"encoding/hex"
 	"errors"
 	"fmt"
-	"hash"
 	"math"
 	"slices"
 	"strconv"
@@ -186,19 +183,6 @@ func Parse(header string) (Header, error) {
 		Ver:        uint8(version),
 		ZeroBits:   uint8(zeroBits),
 	}, nil
-}
-
-func resolveHash(alg string) hash.Hash {
-	switch alg {
-	case "sha-256":
-		return sha256.New()
-	case "sha-512":
-		return sha256.New()
-	case "sha-1":
-		return sha1.New()
-	default:
-		return sha1.New()
-	}
 }
 
 func randBase64(n int) (string, error) {
